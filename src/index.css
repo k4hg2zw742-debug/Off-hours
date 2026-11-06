@@ -89,7 +89,11 @@ ul {
   border-radius: 2px;
 }
 
-main:focus {
+main:focus,
+[tabindex='-1']:focus:not(:focus-visible) {
+  outline: none;
+}
+h1[tabindex='-1']:focus {
   outline: none;
 }
 
@@ -2171,4 +2175,48 @@ em {
     gap: 1.1rem;
     font-size: 0.9rem;
   }
+}
+
+/* ---------- Image fallback ---------- */
+
+.photo--fallback {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: clamp(1rem, 3vw, 1.75rem);
+  min-height: 10rem;
+  background:
+    repeating-linear-gradient(135deg, transparent 0 14px, rgba(31, 29, 26, 0.045) 14px 15px),
+    var(--sand);
+  color: var(--ink-2);
+}
+.photo__fallback-mark {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 1.1rem;
+  color: var(--accent-ink);
+}
+.photo__fallback-text {
+  font-family: var(--serif);
+  font-size: clamp(1rem, 1.6vw, 1.25rem);
+  line-height: 1.35;
+  max-width: 30ch;
+}
+
+/* ---------- Photo credit ---------- */
+
+.photo-credit {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.photo-credit a {
+  color: inherit;
+  text-underline-offset: 0.2em;
+}
+
+/* Footer links */
+.site-footer__small a {
+  color: inherit;
+  text-underline-offset: 0.2em;
 }

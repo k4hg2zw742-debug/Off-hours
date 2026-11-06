@@ -135,6 +135,7 @@ function StepScreen({
       const res = checkLocation(locationText)
       if (!res.ok) {
         setLocationError(res.message)
+        document.getElementById('location-input')?.focus()
         return
       }
       update({ location: res.value })
@@ -166,7 +167,7 @@ function StepScreen({
             <button type="button" className="btn btn--text back-btn" onClick={back}>
               <ArrowLeft size={18} /> Back
             </button>
-            <div className="progress" aria-label={`Question ${index + 1} of ${total}`}>
+            <div className="progress">
               <span className="progress__count" aria-hidden="true">
                 {String(index + 1).padStart(2, '0')} <span>/ {String(total).padStart(2, '0')}</span>
               </span>
@@ -178,6 +179,9 @@ function StepScreen({
             </div>
           </div>
           <h1 className="plan__title" ref={headingRef} tabIndex={-1}>
+            <span className="visually-hidden">
+              Question {index + 1} of {total}:{' '}
+            </span>
             {copy[step].title}
           </h1>
           <p className="plan__help" id={`help-${step}`}>

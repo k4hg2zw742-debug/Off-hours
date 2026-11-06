@@ -1,7 +1,7 @@
-import { useEffect } from 'react'
-import { Link, NavLink, Route, Routes, useLocation } from 'react-router-dom'
+import { useEffect, useRef } from 'react'
+import { Link, NavLink, Route, Routes, useLocation, useNavigationType } from 'react-router-dom'
 import { Wordmark } from './components/ui'
-import { useSaved } from './lib/store'
+import { useAnnouncement, useSaved } from './lib/store'
 import Guide from './pages/Guide'
 import Guides from './pages/Guides'
 import Home from './pages/Home'
@@ -10,12 +10,40 @@ import Plan from './pages/Plan'
 import Results from './pages/Results'
 import Saved from './pages/Saved'
 
-function ScrollToTop() {
+/**
+ * On a new page: scroll to the top (but let back/forward keep their position),
+ * update the document title, and move keyboard and screen-reader focus to the
+ * page's main heading so the change is announced. The question flow manages
+ * its own focus.
+ */
+function RouteChange() {
   const { pathname } = useLocation()
+  const navType = useNavigationType()
+  const first = useRef(true)
   useEffect(() => {
-    window.scrollTo(0, 0)
-  }, [pathname])
+    if (navType !== 'POP') window.scrollTo(0, 0)
+    const h1 = document.querySelector<HTMLElement>('main h1')
+    const title = h1?.textContent?.replace(/\s+/g, ' ').trim()
+    document.title = pathname === '/' || !title ? 'Off Hours — Make something of your spare time' : `${title} — Off Hours`
+    if (first.current) {
+      first.current = false
+      return
+    }
+    if (!pathname.startsWith('/plan') && h1) {
+      h1.setAttribute('tabindex', '-1')
+      h1.focus({ preventScroll: navType === 'POP' })
+    }
+  }, [pathname, navType])
   return null
+}
+
+function Announcer() {
+  const text = useAnnouncement()
+  return (
+    <div className="visually-hidden" role="status" aria-live="polite" aria-atomic="true">
+      {text}
+    </div>
+  )
 }
 
 function Header() {
@@ -28,8 +56,9 @@ function Header() {
         <Wordmark />
         <nav className="site-nav" aria-label="Main">
           <NavLink to="/guides">All guides</NavLink>
-          <NavLink to="/saved" aria-label={`Saved guides, ${ids.length}`}>
-            Saved <span className="count" aria-hidden="true">{ids.length}</span>
+          <NavLink to="/saved">
+            Saved <span className="count">{ids.length}</span>
+            <span className="visually-hidden"> {ids.length === 1 ? 'guide' : 'guides'}</span>
           </NavLink>
         </nav>
       </div>
@@ -52,7 +81,11 @@ function Footer() {
         </nav>
         <p className="site-footer__small">
           A working prototype using a curated set of ideas. Costs are estimates per person and will vary. Off Hours does not check or recommend specific venues.
-          Photography via Unsplash.
+          Photography from{' '}
+          <a href="https://unsplash.com/license" target="_blank" rel="noopener noreferrer">
+            Unsplash<span className="visually-hidden"> (opens in a new tab)</span>
+          </a>
+          ; each guide links to its photo’s source.
         </p>
       </div>
     </footer>
@@ -65,7 +98,8 @@ export default function App() {
       <a className="skip-link" href="#main">
         Skip to content
       </a>
-      <ScrollToTop />
+      <RouteChange />
+      <Announcer />
       <Header />
       <main id="main" tabIndex={-1}>
         <Routes>

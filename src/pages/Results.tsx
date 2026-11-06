@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowRight, Clock, Photo, Pound, SaveButton, SettingLabel, Swap } from '../components/ui'
 import { getActivity } from '../data/activities'
@@ -6,9 +6,12 @@ import type { Activity } from '../data/types'
 import { budgetLabel, companyLabel, formatCost, formatDuration, moodLabel, timeLabel, timePhrase } from '../lib/labels'
 import { explain, isFullMatch, passesHard, pickInitial, rank, suggestAdjustment, swap, type Adjustment } from '../lib/match'
 import { isComplete, prefsFromSearch, prefsKey, prefsToSearch, type Prefs, type StepId } from '../lib/prefs'
-import { getDraft, getSeen, markSeen, setDraft, setLastResults } from '../lib/store'
+import { announce, getDraft, getSeen, markSeen, setDraft, setLastResults } from '../lib/store'
 
 const numberWord = ['No ideas', 'One idea', 'Two ideas', 'Three ideas']
+
+/** Set just before navigating to adjusted results, so the new view knows to take focus. */
+const pendingFocus = { adjusted: false }
 
 export default function Results() {
   const [search] = useSearchParams()
@@ -47,7 +50,8 @@ function ResultsView({ prefs, show }: { prefs: Prefs; show: string[] }) {
 
   const visibleIds = visible.map((a) => a.id)
   const [messages, setMessages] = useState<Record<string, string>>({})
-  const [announce, setAnnounce] = useState('')
+  const [focusId, setFocusId] = useState<string | null>(null)
+  const headingRef = useRef<HTMLHeadingElement>(null)
 
   // Keep the URL, the draft and the "seen" list in step with what is on screen.
   useEffect(() => {
@@ -70,30 +74,50 @@ function ResultsView({ prefs, show }: { prefs: Prefs; show: string[] }) {
           ? 'There are no other ideas that fit your time and budget, so this one stays.'
           : 'No further matches for these preferences.'
       setMessages({ [outgoing]: msg })
-      setAnnounce(msg)
+      announce(msg)
       return
     }
     const next = [...visibleIds]
     next[slot] = res.next.id
     const note = res.recycled ? `You have seen every match for these answers, so we are showing earlier ideas again.` : ''
     setMessages(note ? { [res.next.id]: note } : {})
-    setAnnounce(`Swapped for ${res.next.title}. ${note}`)
+    announce(`Swapped for ${res.next.title}. ${res.next.setting === 'in' ? 'Stay in' : 'Go out'}, ${formatDuration(res.next.minutes)}, ${formatCost(res.next.cost)}. ${note}`)
+    // The swapped card is a new element; take focus to its title so keyboard users stay in place.
+    setFocusId(res.next.id)
     navigate(`/results${prefsToSearch(prefs, next)}`, { replace: true })
   }
 
   function applyAdjustment(a: Adjustment) {
     setDraft({ ...a.prefs })
+    pendingFocus.adjusted = true
     navigate(`/results${prefsToSearch(a.prefs)}`)
   }
 
   const visibleFull = visible.filter((a) => isFullMatch(a, prefs)).length
   const count = visible.length
 
+  // Announce the new set whenever the answers change (first load, edits, or an adjustment).
+  useEffect(() => {
+    const fit =
+      count === 0
+        ? 'Nothing fits those answers; see the suggestion to broaden them.'
+        : visibleFull === count
+          ? 'All fit your time, budget, company and mood.'
+          : `${visibleFull} of ${count} fit everything you asked for; the others are marked as partial fits.`
+    announce(`${count === 0 ? 'No ideas' : numberWord[count]} for ${timePhrase(prefs.time)}. ${fit}`)
+    if (pendingFocus.adjusted) {
+      // Same page, new results: move focus to the heading so the change is not missed.
+      pendingFocus.adjusted = false
+      headingRef.current?.focus()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   return (
     <div className="results">
       <header className="results__head">
         <p className="eyebrow">Your suggestions</p>
-        <h1 className="display-1 results__title">
+        <h1 className="display-1 results__title" ref={headingRef} tabIndex={-1}>
           {count === 0 ? (
             <>Nothing fits just yet.</>
           ) : (
@@ -107,21 +131,26 @@ function ResultsView({ prefs, show }: { prefs: Prefs; show: string[] }) {
 
       <FitNotice prefs={prefs} count={count} visibleFull={visibleFull} hardTotal={ranked.length} adjustment={adjustment} onApply={applyAdjustment} />
 
-      <p className="visually-hidden" aria-live="polite">
-        {announce}
-      </p>
-
       {count > 0 && (
         <ol className={`suggestions suggestions--${count}`}>
           {visible.map((a, i) => (
-            <Suggestion key={a.id} activity={a} prefs={prefs} index={i} message={messages[a.id]} onSwap={() => doSwap(i)} />
+            <Suggestion
+              key={a.id}
+              activity={a}
+              prefs={prefs}
+              index={i}
+              message={messages[a.id]}
+              autoFocus={focusId === a.id}
+              onSwap={() => doSwap(i)}
+            />
           ))}
         </ol>
       )}
 
       <aside className="results__foot">
         <p>
-          Suggestions come from our curated guides and are matched on your answers — nothing here is a live listing. Costs are estimates per person.
+          Suggestions come from our curated guides and are matched on your answers — they are general ideas, not live listings. Off Hours has not checked any local
+          places, and costs are estimates per person.
         </p>
         <div className="results__foot-actions">
           <Link to="/plan/setting" className="btn btn--outline">
@@ -241,14 +270,20 @@ function Suggestion({
   prefs,
   index,
   message,
+  autoFocus,
   onSwap,
 }: {
   activity: Activity
   prefs: Prefs
   index: number
   message?: string
+  autoFocus?: boolean
   onSwap: () => void
 }) {
+  const titleRef = useRef<HTMLAnchorElement>(null)
+  useEffect(() => {
+    if (autoFocus) titleRef.current?.focus({ preventScroll: true })
+  }, [autoFocus])
   const { fits, caveats } = explain(a, prefs)
   const full = isFullMatch(a, prefs)
   const sizes = index === 0 ? '(min-width: 960px) 60vw, 100vw' : '(min-width: 960px) 40vw, 100vw'
@@ -265,7 +300,9 @@ function Suggestion({
             {!full && <span className="tag tag--partial">Partial fit</span>}
           </div>
           <h2 className="suggestion__title" id={`s-${a.id}`}>
-            <Link to={`/guide/${a.id}`}>{a.title}</Link>
+            <Link to={`/guide/${a.id}`} ref={titleRef}>
+              {a.title}
+            </Link>
           </h2>
           <p className="suggestion__standfirst">{a.standfirst}</p>
 

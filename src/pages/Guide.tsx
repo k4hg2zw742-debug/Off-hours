@@ -7,6 +7,7 @@ import { formatCost, formatDuration, formatMinutes } from '../lib/labels'
 import { checkLocation } from '../lib/prefs'
 import { getDraft, setDraft, useLastResults } from '../lib/store'
 import NotFound from './NotFound'
+import { photoSourceUrl } from '../data/photos'
 
 const companyWords: Record<Company, string> = { solo: 'on your own', partner: 'as a pair', friends: 'with friends', family: 'with family' }
 const moodWords: Record<Mood, string> = { relaxed: 'relaxed', active: 'active', creative: 'creative', social: 'social', different: 'something different' }
@@ -134,7 +135,16 @@ function GuideView({ a }: { a: Activity }) {
 
           <p className="guide__estimate">
             Times and costs are estimates for one person and will vary with where you live and what you choose.
+            {a.setting === 'out' && ' Off Hours does not name or check local venues.'}
           </p>
+          {photoSourceUrl(a.image.name) && (
+            <p className="photo-credit">
+              Photograph:{' '}
+              <a href={photoSourceUrl(a.image.name)} target="_blank" rel="noopener noreferrer">
+                Unsplash<span className="visually-hidden"> (opens in a new tab)</span>
+              </a>
+            </p>
+          )}
         </aside>
       </div>
 

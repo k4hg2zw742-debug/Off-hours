@@ -11,8 +11,16 @@ npm install
 npm run dev        # local development
 npm test           # content + matching checks across all 1,200 answer combinations
 npm run build      # production build in dist/ (includes 404.html fallback for static hosts)
-npm run preview    # serve the production build
+npm run preview    # serve the production build on http://localhost:4173
+npm run test:browser  # with the preview running: axe accessibility audit + end-to-end behaviour checks
 ```
+
+`test:browser` needs Playwright with Chromium available (`npm i -D playwright && npx playwright install chromium` if it is not already installed).
+
+### Hosting
+
+It is a static single-page app. Any static host works as long as unknown paths serve `index.html`, so that refreshes and direct guide links resolve:
+`dist/404.html` covers GitHub Pages, `public/_redirects` covers Netlify, and `vite preview` handles it locally. To host under a sub-path, build with `vite build --base=/sub-path/`.
 
 ## What's inside
 
@@ -37,9 +45,19 @@ npm run preview    # serve the production build
 
 46 guides (23 stay in, 23 go out) with steps, what to bring, a bad-weather alternative for weather-dependent activities, and a cost-saving tip. Costs and times are estimates. No real venues, events, distances, opening times, ratings or ticket prices are named. Outings offer a clearly labelled Google Maps *search* using the visitor's town or postcode — not a verified recommendation. Location is never requested from the device.
 
+### Accessibility and resilience
+
+- Every control works by keyboard, with a skip link and a visible focus ring (accent outline). The answer options are native radio buttons, so arrow keys work, and Continue is always an explicit step.
+- On each new question, focus moves to its heading, which includes "Question 2 of 6". On other pages, focus moves to the main heading and the document title updates.
+- One persistent live region announces results, swaps, saves and removals. After a swap, focus moves to the new idea's title. After a removal on the Saved page, focus moves to the next item.
+- `prefers-reduced-motion` turns off animation and transitions.
+- Storage (`src/lib/store.ts`) validates every value it reads, discards malformed data, and falls back to memory when storage is blocked. The Saved page says when saves won't persist. Saved guides sync across tabs.
+- Back and forward keep the scroll position. Results, guides and questions all survive a refresh or direct link. Unknown or invalid URLs get a helpful page.
+- If a photo fails to load, a neutral panel with the image description takes its place.
+
 ### Photography
 
-Photos are from Unsplash, downloaded and bundled in `public/images` (900px and 1800px versions).
+Photos are from Unsplash, downloaded and bundled in `public/images` (900px and 1800px versions). Each image's source is listed in [`PHOTOS.md`](PHOTOS.md) (generated from `src/data/photos.ts` with `npx tsx scripts/photo-credits.ts`) and linked from its guide page.
 
 ## Stack
 

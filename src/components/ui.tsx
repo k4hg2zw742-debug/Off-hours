@@ -1,6 +1,7 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { Activity } from '../data/types'
-import { useSaved } from '../lib/store'
+import { announce, useSaved } from '../lib/store'
 
 const base = import.meta.env.BASE_URL
 
@@ -19,11 +20,28 @@ export function Photo({
   priority?: boolean
   className?: string
 }) {
+  const [failed, setFailed] = useState(false)
+  if (failed) {
+    // Graceful fallback: a quiet typographic panel that keeps the layout and still describes the picture.
+    return (
+      <div className={`photo photo--fallback ${className}`} role="img" aria-label={image.alt}>
+        <span className="photo__fallback-mark" aria-hidden="true">
+          Off Hours
+        </span>
+        <span className="photo__fallback-text" aria-hidden="true">
+          {image.alt}
+        </span>
+      </div>
+    )
+  }
   return (
     <div className={`photo ${className}`}>
       <img
         ref={(el) => {
-          if (el && el.complete && el.naturalWidth > 0) el.parentElement?.classList.add('is-loaded')
+          if (el && el.complete) {
+            if (el.naturalWidth > 0) el.parentElement?.classList.add('is-loaded')
+            else if (el.currentSrc) setFailed(true)
+          }
         }}
         src={imageSrc(image.name, 'lg')}
         srcSet={`${imageSrc(image.name, 'sm')} 900w, ${imageSrc(image.name, 'lg')} 1800w`}
@@ -34,6 +52,7 @@ export function Photo({
         decoding="async"
         style={image.position ? { objectPosition: image.position } : undefined}
         onLoad={(e) => e.currentTarget.parentElement?.classList.add('is-loaded')}
+        onError={() => setFailed(true)}
       />
     </div>
   )
@@ -41,9 +60,9 @@ export function Photo({
 
 export function Wordmark({ small = false }: { small?: boolean }) {
   return (
-    <Link to="/" className={`wordmark${small ? ' wordmark--small' : ''}`} aria-label="Off Hours — home">
-      <span className="wordmark__off">Off</span>
-      <span className="wordmark__hours">Hours</span>
+    <Link to="/" className={`wordmark${small ? ' wordmark--small' : ''}`}>
+      <span className="wordmark__off">Off</span> <span className="wordmark__hours">Hours</span>
+      <span className="visually-hidden">, home</span>
     </Link>
   )
 }
@@ -80,7 +99,10 @@ export function SaveButton({ id, title, variant = 'quiet' }: { id: string; title
       type="button"
       className={`btn btn--${variant === 'solid' ? 'outline' : 'text'} save-btn${saved ? ' is-saved' : ''}`}
       aria-pressed={saved}
-      onClick={() => toggle(id)}
+      onClick={() => {
+        toggle(id)
+        announce(saved ? `Removed ${title} from saved.` : `Saved ${title}. Find it under Saved.`)
+      }}
       aria-label={saved ? `Saved: ${title}. Remove from saved` : `Save ${title}`}
     >
       <Bookmark filled={saved} />
