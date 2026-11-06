@@ -17,6 +17,10 @@ npm run test:browser  # with the preview running: axe accessibility audit + end-
 
 `test:browser` needs Playwright with Chromium available (`npm i -D playwright && npx playwright install chromium` if it is not already installed).
 
+### Hosted preview
+
+`npm run build:artifact` builds a variant for the claude.ai artifact host in `dist-artifact/`. It uses `#` links instead of paths (that host can't serve path-based URLs), relative asset paths, and an `off-hours.html` page without its own `<html>` wrapper. The normal build is unaffected.
+
 ### Hosting
 
 It is a static single-page app. Any static host works as long as unknown paths serve `index.html`, so that refreshes and direct guide links resolve:

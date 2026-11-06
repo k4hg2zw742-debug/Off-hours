@@ -339,7 +339,7 @@ em {
 
 .site-header {
   position: sticky;
-  top: 0;
+  top: env(safe-area-inset-top, 0px);
   z-index: 20;
   background: color-mix(in srgb, var(--cream) 92%, transparent);
   backdrop-filter: blur(10px);
